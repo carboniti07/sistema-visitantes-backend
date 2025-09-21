@@ -1,3 +1,4 @@
+// server.js
 const express = require("express");
 const cors = require("cors");
 const mongoose = require("mongoose");
@@ -9,18 +10,15 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
-// Conexão com MongoDB Atlas
+// 🔹 Conexão MongoDB Atlas
 mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
-.then(() => console.log("✅ MongoDB conectado"))
-.catch(err => console.error("❌ Erro ao conectar MongoDB:", err));
+.then(() => console.log("✅ Conectado ao MongoDB"))
+.catch((err) => console.error("❌ Erro ao conectar ao MongoDB:", err));
 
-// Importa secretários de arquivo (não vai para o banco)
-const SECRETARIOS = require("./secretarios.json");
-
-// Schema e Model para Visitantes
+// 🔹 Modelo Visitante
 const VisitanteSchema = new mongoose.Schema({
   nome: String,
   sexo: String,
@@ -39,7 +37,10 @@ const VisitanteSchema = new mongoose.Schema({
 
 const Visitante = mongoose.model("Visitante", VisitanteSchema);
 
-// Rota de login (continua usando secretarios.json)
+// 🔹 Secretários continuam no JSON (só login)
+const SECRETARIOS = require("./secretarios.json");
+
+// Login
 app.post("/login", (req, res) => {
   const { matricula, cpf } = req.body;
   const cleanCpf = cpf.replace(/\D/g, "");
@@ -52,7 +53,7 @@ app.post("/login", (req, res) => {
     return res.status(401).json({ message: "Matrícula ou CPF inválidos." });
   }
 
-  return res.json({
+  res.json({
     nome: found.nome,
     matricula: found.matricula,
     congregacao: found.congregacao,
@@ -60,23 +61,41 @@ app.post("/login", (req, res) => {
   });
 });
 
-// CRUD de visitantes (MongoDB)
+// CRUD Visitantes
 app.get("/visitantes", async (req, res) => {
-  const lista = await Visitante.find();
-  res.json(lista);
+  try {
+    const lista = await Visitante.find().sort({ createdAt: -1 });
+    res.json(lista);
+  } catch (err) {
+    res.status(500).json({ error: "Erro ao buscar visitantes" });
+  }
 });
 
 app.post("/visitantes", async (req, res) => {
-  const novo = new Visitante(req.body);
-  await novo.save();
-  res.json(novo);
+  try {
+    const novo = new Visitante(req.body);
+    await novo.save();
+    res.json(novo);
+  } catch (err) {
+    res.status(500).json({ error: "Erro ao salvar visitante" });
+  }
 });
 
 app.delete("/visitantes/:id", async (req, res) => {
-  await Visitante.findByIdAndDelete(req.params.id);
-  res.json({ ok: true });
+  try {
+    await Visitante.findByIdAndDelete(req.params.id);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: "Erro ao deletar visitante" });
+  }
 });
 
+// Healthcheck (opcional para Render)
+app.get("/", (req, res) => {
+  res.send("✅ API Visitantes rodando");
+});
+
+// Start
 app.listen(PORT, () => {
-  console.log(`✅ Servidor rodando em http://localhost:${PORT}`);
+  console.log(`🚀 Servidor rodando em http://localhost:${PORT}`);
 });
