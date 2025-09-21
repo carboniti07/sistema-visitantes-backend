@@ -2,6 +2,7 @@
 const express = require("express");
 const cors = require("cors");
 const mongoose = require("mongoose");
+const path = require("path"); // 👈 necessário para servir o build React
 require("dotenv").config();
 
 const app = express();
@@ -90,9 +91,17 @@ app.delete("/visitantes/:id", async (req, res) => {
   }
 });
 
-// Healthcheck (opcional para Render)
-app.get("/", (req, res) => {
+// Healthcheck separado (prefixo /api para não conflitar com React)
+app.get("/api/health", (req, res) => {
   res.send("✅ API Visitantes rodando");
+});
+
+// 🔹 Servir arquivos do React build
+app.use(express.static(path.join(__dirname, "build")));
+
+// 🔹 Fallback: qualquer rota não-API cai no index.html do React
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "build", "index.html"));
 });
 
 // Start
