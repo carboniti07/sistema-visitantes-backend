@@ -21,7 +21,7 @@ mongoose
   .catch((err) => console.error("❌ Erro ao conectar ao MongoDB:", err));
 
 // =======================================================
-// 🧩 Modelo Visitante (atualizado)
+// 🧩 Modelo Visitante (ATUALIZADO)
 // =======================================================
 const VisitanteSchema = new mongoose.Schema(
   {
@@ -35,14 +35,14 @@ const VisitanteSchema = new mongoose.Schema(
     procurando: String,
     temCargo: String,
     cargo: String,
-    cargoLabel: String, // ✅ novo (texto pronto p/ homem/mulher)
+    cargoLabel: String, // ✅ NOVO (texto pronto do cargo)
     comoconheceu: String,
     comoconheceuLabel: String,
     nomeConvidador: String,
     dataHora: String,
     whatsapp: String,
 
-    // ✅ NOVO: LGPD (não existia no schema, por isso não salvava)
+    // ✅ NOVO (LGPD) - antes não existia no schema, por isso não salvava
     receberInformativos: { type: String, default: "" }, // "sim" | "não" | ""
 
     // 🧩 Campos para famílias
@@ -50,7 +50,7 @@ const VisitanteSchema = new mongoose.Schema(
     membrosFamilia: { type: [String], default: [] },
     totalPessoas: { type: Number, default: 1 },
 
-    // ✅ NOVO: salvar os dados de cada membro (sexo/perfil/cargo por pessoa)
+    // ✅ NOVO: detalhes por membro (para sexo/perfil/cargo por pessoa)
     membrosDetalhes: {
       type: [
         {
@@ -119,6 +119,9 @@ app.post("/visitantes", async (req, res) => {
   try {
     const body = req.body || {};
 
+    // ✅ converte isFamilia para boolean (às vezes chega "true"/"false" string)
+    const isFamilia = body.isFamilia === true || body.isFamilia === "true";
+
     // ✅ Normaliza membrosFamilia SEMPRE como array de strings
     const membrosFamilia = Array.isArray(body.membrosFamilia)
       ? body.membrosFamilia
@@ -140,13 +143,14 @@ app.post("/visitantes", async (req, res) => {
           .filter((m) => m.nome.length > 0)
       : [];
 
-    // ✅ Monta um objeto novo (não mexe no req.body direto)
+    // ✅ monta doc "limpo" (não muta req.body)
     const doc = {
       ...body,
+      isFamilia,
       membrosFamilia,
       membrosDetalhes,
 
-      // ✅ garante que LGPD salva (agora existe no schema)
+      // ✅ campos novos/garantidos
       receberInformativos: String(body.receberInformativos || "").trim(),
       procurando: String(body.procurando || "").trim(),
       comoconheceuLabel: String(body.comoconheceuLabel || "").trim(),
@@ -156,7 +160,8 @@ app.post("/visitantes", async (req, res) => {
     // ✅ Regras família vs individual
     if (doc.isFamilia) {
       // se tiver membrosDetalhes, preferir ele para calcular total e nome
-      const nomesBase = membrosDetalhes.length > 0 ? membrosDetalhes.map((m) => m.nome) : membrosFamilia;
+      const nomesBase =
+        membrosDetalhes.length > 0 ? membrosDetalhes.map((m) => m.nome) : membrosFamilia;
 
       doc.totalPessoas = nomesBase.length || 1;
       doc.nome = nomesBase[0] || "Família visitante";
@@ -168,7 +173,7 @@ app.post("/visitantes", async (req, res) => {
     } else {
       doc.totalPessoas = 1;
 
-      // ✅ se veio membrosDetalhes (do formulário novo), usa o primeiro para preencher campos antigos
+      // ✅ se veio membrosDetalhes, usa o primeiro para preencher campos antigos
       if (membrosDetalhes.length > 0) {
         const m0 = membrosDetalhes[0];
         doc.nome = doc.nome || m0.nome || doc.nome;
@@ -181,7 +186,7 @@ app.post("/visitantes", async (req, res) => {
     }
 
     const novo = await Visitante.create(doc);
-    res.json(novo);
+    res.status(201).json(novo);
   } catch (err) {
     console.error("Erro ao salvar visitante:", err);
     res.status(500).json({ error: "Erro ao salvar visitante" });
@@ -202,8 +207,10 @@ app.delete("/visitantes/:id", async (req, res) => {
 // =======================================================
 // 🔹 Healthcheck e build
 // =======================================================
+
+// ✅ IMPORTANTE: isto prova que o Render atualizou seu código
 app.get("/api/health", (req, res) => {
-  res.send("✅ API Visitantes rodando");
+  res.send("✅ API Visitantes rodando - VERSAO: 2026-01-07-01");
 });
 
 app.use(express.static(path.join(__dirname, "build")));
